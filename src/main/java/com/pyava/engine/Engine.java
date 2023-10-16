@@ -1,4 +1,4 @@
-package com.pyava;
+package com.pyava.engine;
 
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
@@ -89,7 +89,7 @@ public class Engine {
         try {
             Object result = handleInvoke(null, json);
             return MessageFactory.ok(result);
-        } catch (DebugException e) {
+        } catch (ChainException e) {
             return MessageFactory.error(e.getMessage());
         } catch (Exception e) {
             return MessageFactory.error(e.toString());
@@ -112,7 +112,7 @@ public class Engine {
                 String type = chains.getJSONObject(i + 1).getString("type");
                 if (!"local".equals(type) && !"class".equals(type)) {
                     Class<?> clz = invoker instanceof Class ? (Class<?>) invoker : invoker.getClass();
-                    throw new DebugException(clz.getSimpleName(), detail.getString("method"), detail.getJSONArray("args"), "返回为null");
+                    throw new ChainException(clz.getSimpleName(), detail.getString("method"), detail.getJSONArray("args"), "返回为null");
                 }
             }
             invoker = Locals.setVar(detail.getString("local"), returned);
@@ -133,13 +133,13 @@ public class Engine {
             try {
                 return Class.forName(clazz);
             } catch (ClassNotFoundException e) {
-                throw new DebugException("class(" + clazz + ")不存在");
+                throw new ChainException("class(" + clazz + ")不存在");
             }
         }
         String method = detail.getString("method");
         JSONArray args = detail.getJSONArray("args");
         if (method == null || method.isEmpty()) {
-            throw new DebugException("行为缺失：" + detail);
+            throw new ChainException("行为缺失：" + detail);
         }
         if (args == null) {
             args = new JSONArray();
@@ -149,7 +149,7 @@ public class Engine {
         }
         if ("iter".equals(type)) {
             if (!(self instanceof Iterable)) {
-                throw new DebugException("目标对象不支持迭代操作");
+                throw new ChainException("目标对象不支持迭代操作");
             }
             List<Object> list = new ArrayList<>();
             for (Object item : (Iterable<?>) self) {
@@ -157,7 +157,7 @@ public class Engine {
             }
             return list;
         }
-        throw new DebugException("未知的请求类型：" + detail);
+        throw new ChainException("未知的请求类型：" + detail);
     }
 
     private Object methodInvoke(Object invoker, String methodName, JSONArray args) {
@@ -179,7 +179,7 @@ public class Engine {
             method = getMethod(methodName, args, clz);
         }
         if (method == null) {
-            throw new DebugException(clz.getSimpleName(), methodName, args, "不存在");
+            throw new ChainException(clz.getSimpleName(), methodName, args, "不存在");
         }
         method.setAccessible(true);
         Class<?>[] parameters = method.getParameterTypes();
@@ -198,9 +198,9 @@ public class Engine {
             }
             return method.invoke(invoker, args.toArray());
         } catch (IllegalAccessException e) {
-            throw new DebugException(clz.getSimpleName(), methodName, args, "调用错误: " + e.getMessage());
+            throw new ChainException(clz.getSimpleName(), methodName, args, "调用错误: " + e.getMessage());
         } catch (InvocationTargetException e) {
-            throw new DebugException(clz.getSimpleName(), methodName, args, "调用错误: " + e.getTargetException());
+            throw new ChainException(clz.getSimpleName(), methodName, args, "调用错误: " + e.getTargetException());
         }
     }
 }

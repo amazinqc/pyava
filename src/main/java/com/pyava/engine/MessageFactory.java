@@ -1,4 +1,4 @@
-package com.pyava;
+package com.pyava.engine;
 
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
@@ -33,16 +33,14 @@ public class MessageFactory {
         if (data instanceof Message) {
             return pbJson((Message) data);
         }
-        if (data instanceof Collection) {
-            Collection<?> collection = (Collection<?>) data;
+        if (data instanceof Collection<?> collection) {
             JSONArray array = new JSONArray(collection.size());
             for (Object element : collection) {
                 array.add(flatJson(element));
             }
             return array;
         }
-        if (data instanceof Map) {
-            Map<?, ?> map = (Map<?, ?>) data;
+        if (data instanceof Map<?, ?> map) {
             JSONObject jsonObject = new JSONObject(map.size());
             for (Map.Entry<?, ?> entry : map.entrySet()) {
                 jsonObject.put(entry.getKey().toString(), flatJson(entry.getValue()));
