@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -24,16 +25,17 @@ public class Engine {
 
     private static Method getMethod(String methodName, JSONArray args, Class<?> clz) {
         int argSize = args.size();
-        List<Method> methods = Stream.concat(Arrays.stream(clz.getDeclaredMethods()), Arrays.stream(clz.getMethods()))
+        Map<Method, Integer> methods = Stream.concat(Arrays.stream(clz.getDeclaredMethods()), Arrays.stream(clz.getMethods()))
                 .filter(m -> m.getName().equals(methodName))
                 .filter(m -> m.getParameterCount() == argSize || m.isVarArgs())
                 .distinct()
-                .collect(Collectors.toList());
+                .collect(Collectors.toMap(v -> v, v -> 0));
         if (methods.isEmpty()) {
             return null;
         }
-        for (Iterator<Method> iterator = methods.iterator(); iterator.hasNext(); ) {
-            Method method = iterator.next();
+        for (Iterator<Map.Entry<Method, Integer>> iterator = methods.entrySet().iterator(); iterator.hasNext(); ) {
+            Map.Entry<Method, Integer> entry = iterator.next();
+            Method method = entry.getKey();
             Class<?>[] params = method.getParameterTypes();
             boolean isVarArgs = method.isVarArgs();
             int last = params.length - 1;
@@ -42,21 +44,32 @@ public class Engine {
                 if (arg != null) {
                     Class<?> parameterType = isVarArgs && i >= last ? params[last].getComponentType() : params[i];
                     Class<?> argClass = arg.getClass();
-                    if (parameterType.isAssignableFrom(argClass)) {
+                    if (parameterType == argClass) {
                         continue;
                     }
                     if (parameterType.isPrimitive()) {
                         try {
-                            if (((Class<?>) argClass.getField("TYPE").get(null)).isPrimitive()) {
-                                continue;
+                            Class<?> type = (Class<?>) argClass.getField("TYPE").get(null);
+                            if (type.isPrimitive()) {
+                                if (type == parameterType) {
+                                    continue;
+                                }
+                                iterator.remove();
+                                break;
                             }
                         } catch (Throwable ignored) {
                         }
                     }
+                    if (parameterType.isAssignableFrom(argClass)) {
+                        entry.setValue(entry.getValue() + 0x100);
+                        continue;
+                    }
                     if (Number.class.isAssignableFrom(parameterType) && Number.class.isAssignableFrom(argClass)) {
+                        entry.setValue(entry.getValue() + 0x10000);
                         continue;
                     }
                     iterator.remove();
+                    break;
                 }
             }
         }
@@ -64,12 +77,17 @@ public class Engine {
             return null;
         }
         if (methods.size() > 1) {
-            methods = methods.stream().filter(m -> !m.isBridge() && !m.isSynthetic()).collect(Collectors.toList());
-            if (methods.size() > 1) {
-                log.warn("发现重复的可执行方法: {}", methods);
+            List<Method> priority = methods.entrySet().stream().collect(Collectors.groupingBy(
+                    Map.Entry::getValue,
+                    TreeMap::new,
+                    Collectors.mapping(Map.Entry::getKey, Collectors.toList()))
+            ).firstEntry().getValue();
+            if (priority.size() > 1) {
+                log.warn("发现重复的可执行方法: {}", priority);
             }
+            return priority.get(0);
         }
-        return methods.get(0);
+        return methods.keySet().iterator().next();
     }
 
 
