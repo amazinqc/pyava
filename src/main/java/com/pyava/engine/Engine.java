@@ -158,7 +158,7 @@ public class Engine {
             }
         }
         if ("iter".equals(type)) {
-            return iterInvoke(self, detail);
+            return Locals.setVar(detail.getString("local"), iterInvoke(self, detail));
         }
         if (type == null) {
             return methodInvoke(self, detail);
@@ -183,7 +183,7 @@ public class Engine {
             JSONObject action = iter.getJSONObject(i);
             String func = action.getString("type");
             if ("filter".equals(func)) {
-                stream = stream.filter(obj -> handleInvoke(obj, action) == Boolean.TRUE);
+                stream = stream.filter(obj -> Boolean.TRUE.equals(handleInvoke(obj, action)));
             } else if ("map".equals(func)) {
                 stream = stream.map(obj -> handleInvoke(obj, action));
             } else if ("foreach".equals(func)) {
