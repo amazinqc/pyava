@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.AccessibleObject;
+import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -16,7 +17,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 
 public class Engine {
@@ -154,6 +157,48 @@ public class Engine {
                 throw new ChainException("class(" + clazz + ")不存在");
             }
         }
+        if ("iter".equals(type)) {
+            return iterInvoke(self, detail);
+        }
+        if (type == null) {
+            return methodInvoke(self, detail);
+        }
+        throw new ChainException("未知的请求类型：" + detail);
+    }
+
+    private List<?> iterInvoke(Object self, JSONObject detail) {
+        if (self == null) {
+            throw new ChainException("Null迭代操作");
+        }
+        Stream<?> stream;
+        if (self instanceof Iterable) {
+            stream = StreamSupport.stream(((Iterable<?>) self).spliterator(), false);
+        } else if (self.getClass().isArray()) {
+            stream = IntStream.range(0, Array.getLength(self)).mapToObj(i -> Array.get(self, i));
+        } else {
+            throw new ChainException("目标对象不支持迭代操作");
+        }
+        JSONArray iter = detail.getJSONArray("ref");
+        for (int i = 0; i < iter.size(); i++) {
+            JSONObject action = iter.getJSONObject(i);
+            String func = action.getString("type");
+            if ("filter".equals(func)) {
+                stream = stream.filter(obj -> handleInvoke(obj, action) == Boolean.TRUE);
+            } else if ("map".equals(func)) {
+                stream = stream.map(obj -> handleInvoke(obj, action));
+            } else if ("foreach".equals(func)) {
+                stream.forEach(obj -> handleInvoke(obj, action));
+                return null;
+            } else if ("collect".equals(func)) {
+                return stream.collect(Collectors.toList());
+            } else {
+                throw new ChainException("错误的迭代类型：" + action);
+            }
+        }
+        throw new ChainException("错误的迭代操作：" + detail);
+    }
+
+    private Object methodInvoke(Object invoker, JSONObject detail) {
         String method = detail.getString("method");
         JSONArray args = detail.getJSONArray("args");
         if (method == null || method.isEmpty()) {
@@ -162,20 +207,7 @@ public class Engine {
         if (args == null) {
             args = new JSONArray();
         }
-        if (type == null) {
-            return methodInvoke(self, method, args);
-        }
-        if ("iter".equals(type)) {
-            if (!(self instanceof Iterable)) {
-                throw new ChainException("目标对象不支持迭代操作");
-            }
-            List<Object> list = new ArrayList<>();
-            for (Object item : (Iterable<?>) self) {
-                list.add((methodInvoke(item, method, args)));
-            }
-            return list;
-        }
-        throw new ChainException("未知的请求类型：" + detail);
+        return methodInvoke(invoker, method, args);
     }
 
     private Object methodInvoke(Object invoker, String methodName, JSONArray args) {
