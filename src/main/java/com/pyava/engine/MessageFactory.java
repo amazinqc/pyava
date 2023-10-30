@@ -59,7 +59,7 @@ public class MessageFactory {
     }
 
     private static String stringify(Object obj) {
-        return JSON.toJSONString(obj, JSONWriter.Feature.IgnoreErrorGetter, JSONWriter.Feature.IgnoreNoneSerializable);
+        return JSON.toJSONString(obj, JSONWriter.Feature.IgnoreErrorGetter);
     }
 
     static String stringify(JSONArray args) {
