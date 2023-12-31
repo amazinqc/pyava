@@ -26,6 +26,10 @@ public class Engine {
 
     private static final Logger log = LoggerFactory.getLogger(Engine.class);
 
+    private static final int SUBCLASS = 0x10;
+    private static final int EASY_NUMERIC = 0x100;
+    private static final int NUMERICAL = 0x10000;
+
     private static Method getMethod(String methodName, JSONArray args, Class<?> clz) {
         int argSize = args.size();
         Map<Method, Integer> methods = Stream.concat(Arrays.stream(clz.getDeclaredMethods()), Arrays.stream(clz.getMethods()))
@@ -57,6 +61,11 @@ public class Engine {
                                 if (type == parameterType) {
                                     continue;
                                 }
+                                List<? extends Class<? extends Number>> list = Arrays.asList(int.class, long.class);
+                                if (list.contains(type) && list.contains(parameterType)) {
+                                    entry.setValue(entry.getValue() + EASY_NUMERIC);
+                                    continue;
+                                }
                                 iterator.remove();
                                 break;
                             }
@@ -64,11 +73,11 @@ public class Engine {
                         }
                     }
                     if (parameterType.isAssignableFrom(argClass)) {
-                        entry.setValue(entry.getValue() + 0x100);
+                        entry.setValue(entry.getValue() + SUBCLASS);
                         continue;
                     }
                     if (Number.class.isAssignableFrom(parameterType) && Number.class.isAssignableFrom(argClass)) {
-                        entry.setValue(entry.getValue() + 0x10000);
+                        entry.setValue(entry.getValue() + NUMERICAL);
                         continue;
                     }
                     iterator.remove();
