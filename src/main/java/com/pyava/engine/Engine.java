@@ -34,7 +34,7 @@ public class Engine {
         int argSize = args.size();
         Map<Method, Integer> methods = Stream.concat(Arrays.stream(clz.getDeclaredMethods()), Arrays.stream(clz.getMethods()))
                 .filter(m -> m.getName().equals(methodName))
-                .filter(m -> m.getParameterCount() == argSize || m.isVarArgs())
+                .filter(m -> m.getParameterCount() == argSize || (m.isVarArgs() && argSize >= m.getParameterCount() - 1))
                 .distinct()
                 .collect(Collectors.toMap(v -> v, v -> 0));
         if (methods.isEmpty()) {
@@ -215,7 +215,7 @@ public class Engine {
             if (arg instanceof Map) {
                 @SuppressWarnings("unchecked")
                 JSONObject nested = new JSONObject((Map<String, Object>) arg);
-                args.set(i, handleInvoke(invoker, nested));
+                (args = new JSONArray(args)).set(i, handleInvoke(invoker, nested));
             }
         }
 
@@ -235,7 +235,7 @@ public class Engine {
         for (int i = 0; i < parameters.length; ++i) {
             if (isVarArgs && i >= parameters.length - 1) {
                 ArrayList<Object> varArgs = new ArrayList<>(args.subList(i, argSize));
-                args = new JSONArray(args.subList(0, parameters.length));
+                args = new JSONArray(args.subList(0, Math.min(parameters.length, argSize)));
                 args.set(i, varArgs);
             }
             args.set(i, args.getObject(i, parameters[i]));
