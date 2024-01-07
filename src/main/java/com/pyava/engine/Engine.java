@@ -184,12 +184,14 @@ public class Engine {
             stream = StreamSupport.stream(((Iterable<?>) iterable).spliterator(), false);
         } else if (iterable.getClass().isArray()) {
             stream = IntStream.range(0, Array.getLength(iterable)).mapToObj(i -> Array.get(iterable, i));
+        } else if (iterable instanceof Stream) {    // 可以自行构造遍历流
+            stream = (Stream<?>) iterable;
         } else {
             throw new ChainException("目标对象不支持迭代操作");
         }
         JSONObject foreach = detail.getJSONObject("ref");
         if (foreach != null) {
-            stream.forEach(each -> handleInvoke(each, foreach));
+            stream.forEach(each -> handleInvoke(Locals.setVar("$_each_in_iter", each), foreach));
         }
         return null;    // 暂时iter作为for-i遍历操作，不设置返回值
     }
