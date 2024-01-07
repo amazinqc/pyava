@@ -175,36 +175,23 @@ public class Engine {
         throw new ChainException("未知的请求类型：" + detail);
     }
 
-    private List<?> iterInvoke(Object self, JSONObject detail) {
-        if (self == null) {
+    private List<?> iterInvoke(Object iterable, JSONObject detail) {
+        if (iterable == null) {
             throw new ChainException("Null迭代操作");
         }
         Stream<?> stream;
-        if (self instanceof Iterable) {
-            stream = StreamSupport.stream(((Iterable<?>) self).spliterator(), false);
-        } else if (self.getClass().isArray()) {
-            stream = IntStream.range(0, Array.getLength(self)).mapToObj(i -> Array.get(self, i));
+        if (iterable instanceof Iterable) {
+            stream = StreamSupport.stream(((Iterable<?>) iterable).spliterator(), false);
+        } else if (iterable.getClass().isArray()) {
+            stream = IntStream.range(0, Array.getLength(iterable)).mapToObj(i -> Array.get(iterable, i));
         } else {
             throw new ChainException("目标对象不支持迭代操作");
         }
-        JSONArray iter = detail.getJSONArray("ref");
-        for (int i = 0; i < iter.size(); i++) {
-            JSONObject action = iter.getJSONObject(i);
-            String func = action.getString("type");
-            if ("filter".equals(func)) {
-                stream = stream.filter(obj -> Boolean.TRUE.equals(handleInvoke(obj, action)));
-            } else if ("map".equals(func)) {
-                stream = stream.map(obj -> handleInvoke(obj, action));
-            } else if ("foreach".equals(func)) {
-                stream.forEach(obj -> handleInvoke(obj, action));
-                return null;
-            } else if ("collect".equals(func)) {
-                return stream.collect(Collectors.toList());
-            } else {
-                throw new ChainException("错误的迭代类型：" + action);
-            }
+        JSONObject foreach = detail.getJSONObject("ref");
+        if (foreach != null) {
+            stream.forEach(each -> handleInvoke(each, foreach));
         }
-        throw new ChainException("错误的迭代操作：" + detail);
+        return null;    // 暂时iter作为for-i遍历操作，不设置返回值
     }
 
     private Object methodInvoke(Object invoker, JSONObject detail) {
