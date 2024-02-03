@@ -167,7 +167,10 @@ public class Engine {
             }
         }
         if ("iter".equals(type)) {
-            return Locals.setVar(detail.getString("local"), iterInvoke(self, detail));
+            return iterInvoke(self, detail);
+        }
+        if ("if".equals(type)) {
+            return ifInvoke(self, detail);
         }
         if (type == null) {
             return methodInvoke(self, detail);
@@ -196,6 +199,30 @@ public class Engine {
         return null;    // 暂时iter作为for-i遍历操作，不设置返回值
     }
 
+    private Object ifInvoke(Object prev, JSONObject detail) {
+        JSONObject branch = detail.getJSONObject("ref");
+        if (branch == null) {
+            return null;
+        }
+        JSONObject condition = branch.getJSONObject("if");
+        if (condition == null) {
+            return null;
+        }
+        Object bool = handleInvoke(prev, condition);
+        if (Boolean.TRUE.equals(bool)) {
+            JSONObject ifTrue = branch.getJSONObject("true");
+            if (ifTrue != null) {
+                return handleInvoke(prev, ifTrue);
+            }
+        } else if (Boolean.FALSE.equals(bool)) {
+            JSONObject ifFalse = branch.getJSONObject("false");
+            if (ifFalse != null) {
+                return handleInvoke(prev, ifFalse);
+            }
+        }
+        return bool;
+    }
+
     private Object methodInvoke(Object invoker, JSONObject detail) {
         String method = detail.getString("method");
         JSONArray args = detail.getJSONArray("args");
@@ -215,7 +242,7 @@ public class Engine {
             if (arg instanceof Map) {
                 @SuppressWarnings("unchecked")
                 JSONObject nested = new JSONObject((Map<String, Object>) arg);
-                (args = new JSONArray(args)).set(i, handleInvoke(invoker, nested));
+                (args = new JSONArray(new ArrayList<>(args))).set(i, handleInvoke(invoker, nested));
             }
         }
 
@@ -234,8 +261,9 @@ public class Engine {
         boolean isVarArgs = method.isVarArgs();
         for (int i = 0; i < parameters.length; ++i) {
             if (isVarArgs && i >= parameters.length - 1) {
-                ArrayList<Object> varArgs = new ArrayList<>(args.subList(i, argSize));
-                args = new JSONArray(args.subList(0, Math.min(parameters.length, argSize)));
+                ArrayList<?> varArgs = new ArrayList<>(args.subList(i, argSize));
+                ArrayList<?> list = new ArrayList<>(args.subList(0, Math.min(parameters.length, argSize)));
+                args = new JSONArray(list);
                 args.set(i, varArgs);
             }
             args.set(i, args.getObject(i, parameters[i]));
