@@ -140,7 +140,7 @@ public class Engine {
 
             if (returned == null && i + 1 != size) {
                 String type = chains.getJSONObject(i + 1).getString("type");
-                if (!"local".equals(type) && !"class".equals(type)) {
+                if (type == null || type.equals('iter')) {  // 调用链禁止为null的情况
                     Class<?> clz = invoker instanceof Class ? (Class<?>) invoker : invoker.getClass();
                     throw new ChainException(clz.getSimpleName(), detail.getString("method"), detail.getJSONArray("args"), "返回为null");
                 }
