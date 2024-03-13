@@ -31,14 +31,17 @@ public class Engine {
     private static final int NUMERICAL = 0x10000;
 
     private static Method getMethod(String methodName, JSONArray args, Class<?> clz) {
+        if (cls == null) {
+                return null;
+        }
         int argSize = args.size();
-        Map<Method, Integer> methods = Stream.concat(Arrays.stream(clz.getDeclaredMethods()), Arrays.stream(clz.getMethods()))
+        Map<Method, Integer> methods = Arrays.stream(clz.getDeclaredMethods())
                 .filter(m -> m.getName().equals(methodName))
                 .filter(m -> m.getParameterCount() == argSize || (m.isVarArgs() && argSize >= m.getParameterCount() - 1))
                 .distinct()
                 .collect(Collectors.toMap(v -> v, v -> 0));
         if (methods.isEmpty()) {
-            return null;
+            return getMethod(methodName, args, clz.getSuperclass());
         }
         for (Iterator<Map.Entry<Method, Integer>> iterator = methods.entrySet().iterator(); iterator.hasNext(); ) {
             Map.Entry<Method, Integer> entry = iterator.next();
@@ -86,7 +89,7 @@ public class Engine {
             }
         }
         if (methods.isEmpty()) {
-            return null;
+            return getMethod(methodName, args, clz.getSuperclass());
         }
         if (methods.size() > 1) {
             List<Method> priority = methods.entrySet().stream().filter(e -> !e.getKey().isBridge()).collect(Collectors.groupingBy(
