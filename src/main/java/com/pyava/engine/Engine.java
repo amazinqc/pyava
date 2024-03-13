@@ -89,7 +89,7 @@ public class Engine {
             return null;
         }
         if (methods.size() > 1) {
-            List<Method> priority = methods.entrySet().stream().collect(Collectors.groupingBy(
+            List<Method> priority = methods.entrySet().stream().filter(e -> !e.getKey().isBridge()).collect(Collectors.groupingBy(
                     Map.Entry::getValue,
                     TreeMap::new,
                     Collectors.mapping(Map.Entry::getKey, Collectors.toList()))
